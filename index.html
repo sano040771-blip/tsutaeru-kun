@@ -724,7 +724,7 @@ function removeThinking() {
 // ============================
 // API呼び出し
 // ============================
-const GEMINI_API_KEY = 'AQ.Ab8RN6LgO1f5oLV0U9r3UjrSIXIlIdhBxoGOauTqKFLjCvmiow';
+const GEMINI_API_KEY = 'AQ.Ab8RN6LaZXic6DEvWDVsAE9gbyPs1bRaD99jmfMPMH63zHdhOw';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 async function callClaude(userMessage, mode) {
@@ -735,8 +735,9 @@ async function callClaude(userMessage, mode) {
 
   history.push({ role: 'user', content: userMessage });
 
-  // Claude形式の履歴をGemini形式に変換（role: assistant → model）
-  const contents = history.map(m => ({
+  // 直近10件のみ送信（トークン数制限対策）
+  const recentHistory = history.slice(-10);
+  const contents = recentHistory.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }]
   }));
@@ -755,6 +756,10 @@ async function callClaude(userMessage, mode) {
   });
 
   const data = await response.json();
+  if (data.error) {
+    const errMsg = `APIエラー(${data.error.code}): ${data.error.message}`;
+    throw new Error(errMsg);
+  }
   const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'エラーが発生しました';
   history.push({ role: 'assistant', content: reply });
   return reply;
@@ -805,7 +810,7 @@ async function send() {
     if (resultText) addResult(resultText);
   } catch(e) {
     removeThinking();
-    addBubble('ai', '通信エラーが発生しました。もう一度お試しください。');
+    addBubble('ai', '通信エラー: ' + (e.message || 'もう一度お試しください。'));
   }
 
   isLoading = false;
@@ -874,7 +879,6 @@ function resetChat() {
     if (bossQuestionSet) initB();
     else addBubble('ai', '上の欄に上司からの質問を入力して「セット」ボタンを押してください。');
   }
-  
 }
 
 function autoResize(el) {
